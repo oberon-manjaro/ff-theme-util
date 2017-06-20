@@ -1,0 +1,132 @@
+#! /bin/sh
+# /usr/bin/ff-theme-util
+
+config="$HOME/.gtkrc-2.0"
+gtk3_conf="$HOME/.config/gtk-3.0/settings.ini"
+ff_profiledir="$HOME/.mozilla/firefox"
+pm_profiledir="$HOME/.moonchild productions/pale moon"
+firstrun="$HOME/.ff-theme-util_1strun"
+
+# create a random profile name
+rand_name() {
+    name="$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1).default"
+}
+
+# create browser profiles
+init_profile() {
+    ini="$profiledir/profiles.ini"
+    if [[ -e $bin && ! -e $ini ]]; then
+        install -Dm644 /etc/ff-theme-util/profiles.ini $ini
+        rand_name
+        sed -i "s/@random@/$name/" $ini
+        mkdir "$profiledir/$name"
+    fi
+}
+
+# needed in live-evironment before browser profiles have been initialized
+firstrun() {
+    # init Firefox profile
+    bin=/usr/bin/firefox
+    profiledir="$ff_profiledir"
+    init_profile
+
+    # same for Palemoon
+    bin=/usr/bin/palemoon
+    profiledir="$pm_profiledir"
+    init_profile
+
+    touch $firstrun
+}
+
+# determine config to monitor and method to query current gtk theme
+get_config() {
+    case $DESKTOP_SESSION in
+        cinnamon) current_theme=$(gsettings get org.cinnamon.desktop.interface gtk-theme | tr -d \')
+            ;;
+        deepin) current_theme=$(gsettings get com.deepin.wrap.gnome.desktop gtk-theme | tr -d \')
+            ;;
+        gnome|budgie|pantheon) current_theme=$(gsettings get org.gnome.desktop.interface gtk-theme | tr -d \')
+            ;;
+        mate) current_theme=$(gsettings get org.mate.interface gtk-theme | tr -d \')
+            ;;
+        xfce) config="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+            current_theme=$(xfconf-query -lvc xsettings -p /Net/ThemeName | cut -d' ' -f3)
+            ;;
+        *)  if [[ $gtk3_conf -nt $config ]]; then
+                config=$gtk3_conf
+                current_theme=$(grep "gtk-theme-name" $config | cut -d'=' -f2)
+            else
+                current_theme=$(grep "gtk-theme-name" $config | cut -d'"' -f2)
+            fi
+            ;;
+    esac
+}
+
+# check if current theme provides chrome dir
+has_chrome() {
+    chromedir="$themesdir/$current_theme/chrome"
+    [[ -e "$chromedir" ]] && return 0 || return 1
+}
+
+# list Firefox and Palemoon userprofiles
+profiles() {
+    grep Path "$profiledir/profiles.ini" | cut -d'=' -f2
+}
+
+# create symlinks to chrome dir for each profile
+set_theme() {
+    for p in $(profiles); do
+        ln -sfd "$1" "$profiledir/$p"
+    done
+}
+
+unset_theme() {
+    for p in $(profiles); do
+    userchrome="$profiledir/$p/chrome"
+        [[ -L "$userchrome" ]] && rm -f "$userchrome"
+    done
+}
+
+update_theme() {
+    get_config
+
+    # Firefox
+    profiledir="$ff_profiledir"
+    themesdir=/usr/share/themes/Firefox
+
+    if has_chrome; then
+        # in case we also need to use it for Palemoon
+        has_ff=true
+        ff_chromedir="$chromedir"
+        if [[ -e "$profiledir" ]]; then
+            set_theme "$chromedir"
+        fi
+    else
+        has_ff=false
+        unset_theme
+    fi
+
+    # Palemoon
+    profiledir="$pm_profiledir"
+    themesdir=/usr/share/themes/Palemoon
+    if [[ -e "$profiledir" ]]; then
+        if has_chrome; then
+           set_theme "$chromedir"
+        # fallback to Firefox theme if available
+        elif [[ $has_ff == "true" ]]; then
+           set_theme "$ff_chromedir"
+        else
+            unset_theme
+        fi
+    fi
+}
+
+[[ ! -e $firstrun ]] && firstrun
+update_theme
+
+# monitor gtk2 theme changes
+while inotifywait -e attrib -e modify "$config"; do
+    update_theme
+done
+
+exit 0
