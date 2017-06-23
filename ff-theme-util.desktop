@@ -4,5 +4,5 @@ Exec=/usr/bin/ff-theme-util
 Name=Firefox Theme Utility
 Comment=Autocreate matching Firefox-theme symlinks 
 Icon=applications-system
-Terminal=true
+Terminal=false
 Categories=System;
