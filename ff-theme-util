@@ -43,7 +43,7 @@ get_config() {
     case $DESKTOP_SESSION in
         cinnamon) current_theme=$(gsettings get org.cinnamon.desktop.interface gtk-theme | tr -d \')
             ;;
-        deepin) current_theme=$(gsettings get com.deepin.wrap.gnome.desktop.interface gtk-theme | tr -d \')
+        deepin) current_theme=$(gsettings get com.deepin.dde.appearance gtk-theme | tr -d \')
             ;;
         gnome|budgie|pantheon) current_theme=$(gsettings get org.gnome.desktop.interface gtk-theme | tr -d \')
             ;;
