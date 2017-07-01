@@ -45,7 +45,7 @@ get_config() {
             ;;
         deepin) current_theme=$(gsettings get com.deepin.dde.appearance gtk-theme | tr -d \')
             ;;
-        gnome|budgie|pantheon) current_theme=$(gsettings get org.gnome.desktop.interface gtk-theme | tr -d \')
+        gnome|budgie-desktop|pantheon) current_theme=$(gsettings get org.gnome.desktop.interface gtk-theme | tr -d \')
             ;;
         mate) current_theme=$(gsettings get org.mate.interface gtk-theme | tr -d \')
             ;;
